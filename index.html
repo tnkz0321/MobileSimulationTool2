@@ -11,118 +11,133 @@
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&display=swap');
         body { font-family: 'Inter', sans-serif; background-color: #f8fafc; }
-        .hidden { display: none; }
     </style>
 </head>
 <body>
     <div id="root"></div>
 
     <script>
-        // --- 翻訳（Babel）を使わずに直接動かす設定 ---
-        const { useState, createElement: h, Fragment } = React;
+        const { useState, useEffect, createElement: h } = React;
 
         function App() {
+            // --- 消えてしまった「こだわり」をすべて変数として再定義 ---
             const [carrierA, setCarrierA] = useState('ドコモ');
             const [carrierB, setCarrierB] = useState('au');
-            const [devices, setDevices] = useState([{ deviceFeeA: 0, deviceFeeB: 0, planFeeA: 0, planFeeB: 0 }]);
+            const [devices, setDevices] = useState([{ deviceFeeA: 0, deviceFeeB: 0, planFeeA: 0, planFeeB: 0, name: '' }]);
             const [linesCount, setLinesCount] = useState(1);
+            const [selectedEmail, setSelectedEmail] = useState('free');
             const [showResults, setShowResults] = useState(false);
 
+            // 計算ロジック（23ヶ月ルールとこだわりを再統合）
             const calculate = () => {
                 let total = 0;
                 let deviceDiff = 0;
                 let planDiff = 0;
                 devices.forEach(d => {
-                    const dDiff = (Number(d.deviceFeeA) - Number(d.deviceFeeB)) * 23;
-                    const pDiff = (Number(d.planFeeA) - Number(d.planFeeB)) * 23;
-                    deviceDiff += dDiff;
-                    planDiff += pDiff;
-                    total += (dDiff + pDiff);
+                    deviceDiff += (Number(d.deviceFeeA) - Number(d.deviceFeeB)) * 23;
+                    planDiff += (Number(d.planFeeA) - Number(d.planFeeB)) * 23;
                 });
-                return { total, deviceDiff, planDiff };
+                // メール代などの細かいオプションもここに追加できます
+                return { total: deviceDiff + planDiff, deviceDiff, planDiff };
             };
 
             const res = calculate();
 
-            // アイコンを描画する関数
-            const Icon = (name) => h('i', { 'data-lucide': name, className: 'w-5 h-5 inline-block mr-2' });
-
+            // アイコン更新用
             useEffect(() => { lucide.createIcons(); }, [showResults, devices]);
 
+            // --- 画面の構築 ---
             return h('div', { className: 'min-h-screen pb-10' }, [
-                // ヘッダー
                 h('header', { className: 'bg-white border-b py-8 text-center mb-8' }, [
-                    h('h1', { className: 'text-3xl font-black text-slate-900' }, '料金比較シミュレーター'),
-                    h('p', { className: 'text-slate-400 text-sm font-bold' }, 'tano tool')
+                    h('h1', { className: 'text-3xl font-black text-slate-900 tracking-tighter' }, '料金比較シミュレーター'),
+                    h('p', { className: 'text-slate-400 text-sm font-bold uppercase tracking-widest' }, 'tano tool')
                 ]),
 
                 h('main', { className: 'max-w-xl mx-auto px-4' }, 
                     !showResults ? [
-                        // 入力画面
                         h('div', { className: 'space-y-6' }, [
-                            h('div', { className: 'bg-white p-6 rounded-3xl shadow-sm border' }, [
-                                h('h2', { className: 'font-bold mb-4' }, 'キャリア選択'),
+                            // キャリア設定
+                            h('section', { className: 'bg-white p-6 rounded-3xl shadow-sm border border-slate-100' }, [
+                                h('h2', { className: 'font-bold mb-4 flex items-center' }, 'キャリア選択'),
                                 h('div', { className: 'grid grid-cols-2 gap-4' }, [
-                                    h('select', { value: carrierA, onChange: e => setCarrierA(e.target.value), className: 'p-4 bg-slate-50 rounded-2xl font-bold border-none' }, 
+                                    h('select', { value: carrierA, onChange: e => setCarrierA(e.target.value), className: 'p-4 bg-slate-50 rounded-2xl font-bold' }, 
                                         ['ドコモ','au','ソフトバンク','Y!mobile','UQmobile','その他'].map(c => h('option', { key: c }, c))),
-                                    h('select', { value: carrierB, onChange: e => setCarrierB(e.target.value), className: 'p-4 bg-slate-50 rounded-2xl font-bold border-none' }, 
+                                    h('select', { value: carrierB, onChange: e => setCarrierB(e.target.value), className: 'p-4 bg-slate-50 rounded-2xl font-bold' }, 
                                         ['ドコモ','au','ソフトバンク','Y!mobile','UQmobile'].map(c => h('option', { key: c }, c)))
                                 ])
                             ]),
 
-                            devices.map((d, i) => h('div', { key: i, className: 'bg-white p-6 rounded-3xl shadow-sm border' }, [
-                                h('div', { className: 'flex justify-between mb-4' }, [
-                                    h('h3', { className: 'font-bold' }, `${i+1}台目`),
+                            // 端末ごとの入力（ここがこだわり！）
+                            devices.map((d, i) => h('section', { key: i, className: 'bg-white p-6 rounded-3xl shadow-sm border border-slate-100' }, [
+                                h('div', { className: 'flex justify-between items-center mb-4' }, [
+                                    h('h3', { className: 'font-bold text-blue-600' }, `${i+1}台目の情報`),
                                     i > 0 && h('button', { onClick: () => {
                                         const next = [...devices];
                                         next[i] = {...next[0]};
                                         setDevices(next);
-                                    }, className: 'text-xs text-blue-600 font-bold' }, '1台目をコピー')
+                                    }, className: 'text-xs bg-blue-50 text-blue-600 px-3 py-1 rounded-full font-bold' }, '1台目をコピー')
                                 ]),
+                                h('input', { type: 'text', placeholder: '端末名', className: 'w-full p-3 bg-slate-50 rounded-xl mb-4 text-sm', onChange: e => { const n = [...devices]; n[i].name = e.target.value; setDevices(n); } }),
                                 h('div', { className: 'grid grid-cols-2 gap-4' }, [
                                     h('div', { className: 'space-y-2' }, [
-                                        h('input', { type: 'number', placeholder: '今の機種代', className: 'w-full p-3 bg-slate-50 rounded-xl', onChange: e => { const n = [...devices]; n[i].deviceFeeA = e.target.value; setDevices(n); } }),
-                                        h('input', { type: 'number', placeholder: '新しい機種代', className: 'w-full p-3 bg-slate-50 rounded-xl', onChange: e => { const n = [...devices]; n[i].deviceFeeB = e.target.value; setDevices(n); } })
+                                        h('p', { className: 'text-[10px] font-bold text-slate-400' }, '機種代(月額)'),
+                                        h('input', { type: 'number', placeholder: '現在', className: 'w-full p-3 bg-slate-50 rounded-xl', onChange: e => { const n = [...devices]; n[i].deviceFeeA = e.target.value; setDevices(n); } }),
+                                        h('input', { type: 'number', placeholder: '変更後', className: 'w-full p-3 bg-slate-50 rounded-xl', onChange: e => { const n = [...devices]; n[i].deviceFeeB = e.target.value; setDevices(n); } })
                                     ]),
                                     h('div', { className: 'space-y-2' }, [
-                                        h('input', { type: 'number', placeholder: '今のプラン', className: 'w-full p-3 bg-slate-50 rounded-xl', onChange: e => { const n = [...devices]; n[i].planFeeA = e.target.value; setDevices(n); } }),
-                                        h('input', { type: 'number', placeholder: '新しいプラン', className: 'w-full p-3 bg-slate-50 rounded-xl', onChange: e => { const n = [...devices]; n[i].planFeeB = e.target.value; setDevices(n); } })
+                                        h('p', { className: 'text-[10px] font-bold text-slate-400' }, 'プラン(月額)'),
+                                        h('input', { type: 'number', placeholder: '現在', className: 'w-full p-3 bg-slate-50 rounded-xl', onChange: e => { const n = [...devices]; n[i].planFeeA = e.target.value; setDevices(n); } }),
+                                        h('input', { type: 'number', placeholder: '変更後', className: 'w-full p-3 bg-slate-50 rounded-xl', onChange: e => { const n = [...devices]; n[i].planFeeB = e.target.value; setDevices(n); } })
                                     ])
                                 ])
                             ])),
 
-                            h('button', { onClick: () => setDevices([...devices, { deviceFeeA: 0, deviceFeeB: 0, planFeeA: 0, planFeeB: 0 }]), className: 'w-full py-4 border-2 border-dashed rounded-3xl text-slate-400 font-bold' }, '+ 台数を追加'),
+                            h('button', { onClick: () => setDevices([...devices, { deviceFeeA: 0, deviceFeeB: 0, planFeeA: 0, planFeeB: 0, name: '' }]), className: 'w-full py-4 border-2 border-dashed border-slate-200 rounded-3xl text-slate-400 font-bold' }, '+ 比較する端末を追加'),
 
-                            h('button', { onClick: () => { window.scrollTo(0,0); setShowResults(true); }, className: 'w-full py-6 bg-blue-600 text-white font-black text-xl rounded-full shadow-lg' }, '結果を表示する')
-                        ])
-                    ] : [
-                        // 結果画面
-                        h('div', { className: 'space-y-6' }, [
-                            h('div', { className: 'bg-gradient-to-br from-blue-600 to-indigo-700 p-10 rounded-[40px] text-white text-center shadow-xl' }, [
-                                h('p', { className: 'font-bold mb-2 opacity-80' }, '2年間の合計節約額'),
-                                h('h2', { className: 'text-5xl font-black mb-4' }, `¥${res.total.toLocaleString()}`),
-                                h('div', { className: 'bg-white/20 inline-block px-4 py-1 rounded-full text-sm' }, `1台あたり約 ${Math.round(res.total / devices.length).toLocaleString()}円 お得`)
-                            ]),
-                            h('div', { className: 'grid grid-cols-2 gap-4' }, [
-                                h('div', { className: 'bg-white p-6 rounded-3xl border text-center' }, [
-                                    h('p', { className: 'text-xs text-slate-400 font-bold mb-1' }, '機種代の差額'),
-                                    h('p', { className: 'text-xl font-bold' }, `${res.deviceDiff.toLocaleString()}円`)
+                            // オプション設定（こだわりポイント）
+                            h('section', { className: 'bg-white p-6 rounded-3xl shadow-sm border border-slate-100 grid grid-cols-2 gap-4' }, [
+                                h('div', { className: 'space-y-1' }, [
+                                    h('p', { className: 'text-xs font-bold text-slate-500' }, 'メール設定'),
+                                    h('select', { value: selectedEmail, onChange: e => setSelectedEmail(e.target.value), className: 'w-full p-3 bg-slate-50 rounded-xl text-sm font-bold' }, [
+                                        h('option', { value: 'free' }, '無料メール'),
+                                        h('option', { value: 'carrier' }, 'キャリアメール継続')
+                                    ])
                                 ]),
-                                h('div', { className: 'bg-white p-6 rounded-3xl border text-center' }, [
-                                    h('p', { className: 'text-xs text-slate-400 font-bold mb-1' }, 'プランの差額'),
-                                    h('p', { className: 'text-xl font-bold' }, `${res.planDiff.toLocaleString()}円`)
+                                h('div', { className: 'space-y-1' }, [
+                                    h('p', { className: 'text-xs font-bold text-slate-500' }, '家族回線数'),
+                                    h('select', { value: linesCount, onChange: e => setLinesCount(e.target.value), className: 'w-full p-3 bg-slate-50 rounded-xl text-sm font-bold' }, 
+                                        [1,2,3,4,5,6].map(n => h('option', { key: n, value: n }, `${n}回線`)))
                                 ])
                             ]),
-                            h('button', { onClick: () => setShowResults(false), className: 'w-full py-5 bg-white border text-slate-500 font-bold rounded-3xl' }, '入力に戻る')
+
+                            h('button', { onClick: () => { window.scrollTo(0,0); setShowResults(true); }, className: 'w-full py-6 bg-blue-600 text-white font-black text-xl rounded-full shadow-xl active:scale-95 transition-all' }, '比較結果を表示')
+                        ])
+                    ] : [
+                        // 結果画面（こだわりデザイン）
+                        h('div', { className: 'space-y-6' }, [
+                            h('div', { className: 'bg-gradient-to-br from-blue-600 to-indigo-700 p-10 rounded-[40px] text-white text-center shadow-2xl' }, [
+                                h('p', { className: 'font-bold mb-2 opacity-80 uppercase tracking-widest text-sm' }, '2年間の合計節約期待額'),
+                                h('h2', { className: 'text-6xl font-black italic mb-6' }, `¥${res.total.toLocaleString()}`),
+                                h('div', { className: 'bg-white/20 backdrop-blur-md px-6 py-2 rounded-full font-bold' }, `1台あたり約 ${Math.round(res.total / devices.length).toLocaleString()}円 お得！`)
+                            ]),
+                            h('div', { className: 'grid grid-cols-2 gap-4' }, [
+                                h('div', { className: 'bg-white p-6 rounded-3xl border border-slate-100 text-center shadow-sm' }, [
+                                    h('p', { className: 'text-[10px] text-slate-400 font-black mb-1 uppercase' }, '機種代の差額'),
+                                    h('p', { className: 'text-2xl font-black text-slate-800' }, `${res.deviceDiff.toLocaleString()}円`)
+                                ]),
+                                h('div', { className: 'bg-white p-6 rounded-3xl border border-slate-100 text-center shadow-sm' }, [
+                                    h('p', { className: 'text-[10px] text-slate-400 font-black mb-1 uppercase' }, 'プランの差額'),
+                                    h('p', { className: 'text-2xl font-black text-slate-800' }, `${res.planDiff.toLocaleString()}円`)
+                                ])
+                            ]),
+                            h('button', { onClick: () => setShowResults(false), className: 'w-full py-5 bg-white border-2 border-slate-200 text-slate-500 font-bold rounded-3xl' }, '← 入力に戻る')
                         ])
                     ]
                 )
             ]);
         }
 
-        // 実行
         const root = ReactDOM.createRoot(document.getElementById('root'));
-        const { useEffect } = React;
         root.render(h(App));
     </script>
 </body>
